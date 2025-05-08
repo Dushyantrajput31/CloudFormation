@@ -1,0 +1,268 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CloudFormation template to provision EC2, S3, and RDS PostgreSQL resources
+  for stag, dev, uat, and prod environments in one stack.
+
+Parameters:
+  KeyName:
+    Description: EC2 KeyPair name
+    Type: AWS::EC2::KeyPair::KeyName
+
+  SubnetIds:
+    Description: List of at least two subnet IDs in different AZs (for RDS)
+    Type: List<AWS::EC2::Subnet::Id>
+
+  DBUsername:
+    Description: Master username for PostgreSQL DB
+    Type: String
+    NoEcho: true
+
+  DBPassword:
+    Description: Master password for PostgreSQL DB (no '@', '/', '"', or space)
+    Type: String
+    NoEcho: true
+
+Mappings:
+  EnvMap:
+    stag:
+      Name: stag
+    dev:
+      Name: dev
+    uat:
+      Name: uat
+    prod:
+      Name: prod
+
+Resources:
+# ======================= EC2 =======================
+  StagEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      KeyName: !Ref KeyName
+      ImageId: ami-0e35ddab05955cf57
+      SubnetId: !Select [0, !Ref SubnetIds]
+      Tags:
+        - Key: Name
+          Value: stag-ec2
+
+  DevEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      KeyName: !Ref KeyName
+      ImageId: ami-0e35ddab05955cf57
+      SubnetId: !Select [0, !Ref SubnetIds]
+      Tags:
+        - Key: Name
+          Value: dev-ec2
+
+  UatEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      KeyName: !Ref KeyName
+      ImageId: ami-0e35ddab05955cf57
+      SubnetId: !Select [0, !Ref SubnetIds]
+      Tags:
+        - Key: Name
+          Value: uat-ec2
+
+  ProdEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      KeyName: !Ref KeyName
+      ImageId: ami-0e35ddab05955cf57
+      SubnetId: !Select [0, !Ref SubnetIds]
+      Tags:
+        - Key: Name
+          Value: prod-ec2
+
+# ======================= S3 =======================
+  StagS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub stag-s3-bucket-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    DeletionPolicy: Retain
+
+  DevS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub dev-s3-bucket-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    DeletionPolicy: Retain
+
+  UatS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub uat-s3-bucket-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    DeletionPolicy: Retain
+
+  ProdS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub prod-s3-bucket-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    DeletionPolicy: Retain
+
+# =================== DB Subnet Groups ===================
+  StagDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Staging RDS subnet group"
+      SubnetIds: !Ref SubnetIds
+      DBSubnetGroupName: stag-subnet-group
+
+  DevDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Development RDS subnet group"
+      SubnetIds: !Ref SubnetIds
+      DBSubnetGroupName: dev-subnet-group
+
+  UatDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "UAT RDS subnet group"
+      SubnetIds: !Ref SubnetIds
+      DBSubnetGroupName: uat-subnet-group
+
+  ProdDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Production RDS subnet group"
+      SubnetIds: !Ref SubnetIds
+      DBSubnetGroupName: prod-subnet-group
+
+# ======================= RDS =======================
+  StagRDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: stag-postgres-db
+      AllocatedStorage: 20
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: 17.2
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBName: stagdb
+      PubliclyAccessible: false
+      MultiAZ: false
+      StorageType: gp2
+      VPCSecurityGroups: []
+      DBSubnetGroupName: !Ref StagDBSubnetGroup
+    DeletionPolicy: Snapshot
+
+  DevRDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: dev-postgres-db
+      AllocatedStorage: 20
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: 17.2
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBName: devdb
+      PubliclyAccessible: false
+      MultiAZ: false
+      StorageType: gp2
+      VPCSecurityGroups: []
+      DBSubnetGroupName: !Ref DevDBSubnetGroup
+    DeletionPolicy: Snapshot
+
+  UatRDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: uat-postgres-db
+      AllocatedStorage: 20
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: 17.2
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBName: uatdb
+      PubliclyAccessible: false
+      MultiAZ: false
+      StorageType: gp2
+      VPCSecurityGroups: []
+      DBSubnetGroupName: !Ref UatDBSubnetGroup
+    DeletionPolicy: Snapshot
+
+  ProdRDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: prod-postgres-db
+      AllocatedStorage: 20
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: 17.2
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBName: proddb
+      PubliclyAccessible: false
+      MultiAZ: false
+      StorageType: gp2
+      VPCSecurityGroups: []
+      DBSubnetGroupName: !Ref ProdDBSubnetGroup
+    DeletionPolicy: Snapshot
+
+Outputs:
+  DevEC2Id:
+    Value: !Ref DevEC2Instance
+    Description: Dev EC2 Instance ID
+
+  DevS3:
+    Value: !Ref DevS3Bucket
+    Description: Dev S3 Bucket
+
+  DevRDS:
+    Value: !Ref DevRDSInstance
+    Description: Dev RDS Instance
+
+  StagEC2Id:
+    Value: !Ref StagEC2Instance
+    Description: Stag EC2 Instance ID
+
+  StagS3:
+    Value: !Ref StagS3Bucket
+    Description: Stag S3 Bucket
+
+  StagRDS:
+    Value: !Ref StagRDSInstance
+    Description: Stag RDS Instance
+
+  UatEC2Id:
+    Value: !Ref UatEC2Instance
+    Description: UAT EC2 Instance ID
+
+  UatS3:
+    Value: !Ref UatS3Bucket
+    Description: UAT S3 Bucket
+
+  UatRDS:
+    Value: !Ref UatRDSInstance
+    Description: UAT RDS Instance
+
+  ProdEC2Id:
+    Value: !Ref ProdEC2Instance
+    Description: Prod
